@@ -172,3 +172,12 @@ config.backup.yaml
 runtime/
 dev/
 installer_files/
+# Streamlit runtime logs from OneKeyStart.bat
+logs/
+videolingo_*.log
+
+# Agent / PR scratch files (per-machine, never commit)
+AGENTS.md
+pr-body.md
+
+
