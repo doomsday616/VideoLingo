@@ -124,7 +124,8 @@ def transcribe_audio_elevenlabs(raw_audio_path, vocal_audio_path, start = None, 
                     word['end'] += start
         
         rprint(f"[green]✓ Transcription completed in {time.time() - start_time:.2f} seconds[/green]")
-        parsed_result = elev2whisper(result)
+        # Keep word-level timestamps so downstream process_transcription has `words`.
+        parsed_result = elev2whisper(result, word_level_timestamp=True)
         os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
         with open(LOG_FILE, "w", encoding="utf-8") as f:
             json.dump(parsed_result, f, indent=4, ensure_ascii=False)
