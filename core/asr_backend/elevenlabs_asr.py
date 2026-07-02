@@ -47,7 +47,7 @@ def elev2whisper(elev_json, word_level_timestamp = False):
         seg["text"] += prev["text"]
         seg["end"] = prev["end"]
         if word_level_timestamp:
-            seg["words"].append({"text": prev["text"], "start": prev["start"], "end": prev["end"]})
+            seg["words"].append({"word": prev["text"], "start": prev["start"], "end": prev["end"]})
         # decide whether to break the segment
         if nxt is None or (nxt["start"] - prev["end"] > SPLIT_GAP) or (nxt["speaker_id"] != seg["speaker_id"]):
             seg["text"] = seg["text"].strip()
