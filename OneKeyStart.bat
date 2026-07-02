@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 cd /D "%~dp0"
 
 for /F "tokens=1,2 delims=#" %%A in ('"prompt #$H#$E# & echo on & for %%B in (1) do rem"') do set "ESC=%%B"
@@ -39,12 +39,20 @@ where conda >nul 2>nul
 if %errorlevel%==0 (
     echo %C_YELLOW%No uv venv found, falling back to Conda env "videolingo"...%C_RESET%
     call conda activate videolingo
+    if errorlevel 1 (
+        echo %C_RED%ERROR: Failed to activate Conda env "videolingo".%C_RESET%
+        goto install_failed
+    )
+    if /I not "!CONDA_DEFAULT_ENV!"=="videolingo" (
+        echo %C_RED%ERROR: Conda env "videolingo" is not active. Current env: !CONDA_DEFAULT_ENV!%C_RESET%
+        goto install_failed
+    )
     python installer.py --check --quiet
-if errorlevel 1 (
-    echo %C_YELLOW%Conda env is incomplete or outdated. Repairing...%C_RESET%
-    python installer.py --yes
-    if errorlevel 1 goto install_failed
-)
+    if errorlevel 1 (
+        echo %C_YELLOW%Conda env is incomplete or outdated. Repairing...%C_RESET%
+        python installer.py --yes
+        if errorlevel 1 goto install_failed
+    )
     if defined CHECK_ONLY (
         echo %C_GREEN%Environment check passed. --check-only set, not starting Streamlit.%C_RESET%
         goto end

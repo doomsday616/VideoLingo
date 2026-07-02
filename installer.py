@@ -293,6 +293,60 @@ def check_ffmpeg() -> bool:
     return True
 
 
+def noto_cjk_font_available() -> bool:
+    if platform.system() != "Linux" or not shutil.which("fc-match"):
+        return False
+    result = subprocess.run(
+        ["fc-match", "NotoSansCJK-Regular"],
+        capture_output=True,
+        text=True,
+    )
+    output = f"{result.stdout} {result.stderr}".lower()
+    return result.returncode == 0 and "noto" in output and "cjk" in output
+
+
+def _privileged_command(cmd: list[str]) -> list[str] | None:
+    if hasattr(os, "geteuid") and os.geteuid() == 0:
+        return cmd
+    if shutil.which("sudo"):
+        return ["sudo", *cmd]
+    return None
+
+
+def install_linux_noto_fonts() -> None:
+    if platform.system() != "Linux":
+        return
+    print("\n[post] Check Linux Noto CJK fonts")
+    if noto_cjk_font_available():
+        print("  Noto CJK fonts already installed.")
+        return
+
+    if os.path.exists("/etc/debian_version"):
+        cmd = ["apt-get", "install", "-y", "fonts-noto-cjk"]
+    elif shutil.which("dnf"):
+        cmd = ["dnf", "install", "-y", "google-noto-sans-cjk-fonts"]
+    elif shutil.which("yum"):
+        cmd = ["yum", "install", "-y", "google-noto-sans-cjk-fonts"]
+    elif shutil.which("pacman"):
+        cmd = ["pacman", "-S", "--noconfirm", "noto-fonts-cjk"]
+    else:
+        print("  Warning: unsupported Linux distribution; please install Noto CJK fonts manually.")
+        return
+
+    cmd = _privileged_command(cmd)
+    if cmd is None:
+        print("  Warning: sudo not found; please install Noto CJK fonts manually.")
+        return
+
+    try:
+        run(cmd)
+        if shutil.which("fc-cache"):
+            subprocess.run(["fc-cache", "-f"], check=False)
+        print("  Noto CJK fonts installed.")
+    except Exception as exc:
+        print(f"  Warning: failed to install Noto CJK fonts automatically: {exc}")
+
+
 def health_check(quiet: bool = False, require_demucs: bool = False, check_state: bool = True) -> int:
     errors: list[str] = []
     warnings: list[str] = []
@@ -321,6 +375,8 @@ def health_check(quiet: bool = False, require_demucs: bool = False, check_state:
         errors.append("missing optional package required by flag: demucs")
     elif package_version("demucs") is None:
         warnings.append("demucs is not installed; vocal separation will be unavailable")
+    if platform.system() == "Linux" and not noto_cjk_font_available():
+        warnings.append("Noto CJK fonts are not installed; CJK subtitle burn-in may fail")
     if not shutil.which("ffmpeg"):
         errors.append("ffmpeg not found in PATH")
     if not quiet:
@@ -350,6 +406,7 @@ def install_all(args: argparse.Namespace) -> int:
     if not args.skip_demucs:
         install_demucs(force=args.force, require=args.require_demucs)
     install_project_metadata()
+    install_linux_noto_fonts()
     ffmpeg_ok = check_ffmpeg()
     save_state()
     status = health_check(require_demucs=args.require_demucs)
